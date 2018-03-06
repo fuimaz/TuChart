@@ -209,9 +209,9 @@ def checkValid(zip_array):
     if len(close_list) >= 60:
         ma = calculateMa(close_list, 30)
         lent = len(ma)
-        if lent > 3:
+        if lent > 30:
             index1 = ma[lent - 1]
-            index2 = ma[lent - 2]
+            index2 = ma[lent - 29]
             if index1 < index2:
                 return False
     return True
@@ -484,7 +484,7 @@ for index, line in zip(range(0, len(code_list)), code_list):
     if index % 30 == 0:
         print (u'%s-差价图' % line)
         # graphpage([(u'%s-差价图' % line), (u'%s-价格指数' % line)], u"2015/01/01", u"2018/02/27", 'D', 854, 532)
-        graphpage(exec_code_list, u"2015/01/01", u"2018/03/04", 'D', 854, 532)
+        graphpage(exec_code_list, u"2015/01/01", str(datetime.date.today()), 'D', 854, 532)
         exec_code_list = []
         time.sleep(20)
 
