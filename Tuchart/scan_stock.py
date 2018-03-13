@@ -5,6 +5,7 @@ from pandas import DataFrame as df
 import re
 import tushare as ts
 import time
+import os
 import pandas as pd
 
 try:
@@ -28,6 +29,7 @@ times = 0
 
 def graphpage(items,startdate,enddate,option,width1, height1): #labels:复权ork线or分笔 option:hfq, qfq or 15, 30, D, etc
     page = Page()
+    is_has_content = False
     for i in items:#generate numbers of graphs according to numbers of queries in treewidget
         try:
             # i -> 600209-差价图
@@ -36,6 +38,8 @@ def graphpage(items,startdate,enddate,option,width1, height1): #labels:复权ork
                 a = generateline(j[0],j[1],startdate,enddate,option)#stock number, Type, startdate, enddate, 30 or 15 or days
                 if a is None:
                     continue
+
+                is_has_content = True
                 time = [d[0] for d in a]#get time from returned dictionary
                 if j[1]!="Kline":
 
@@ -187,14 +191,33 @@ def graphpage(items,startdate,enddate,option,width1, height1): #labels:复权ork
         except Exception as e:
             print(e)
     global times
-    file_name = '../data/' + str(datetime.date.today()) +'_' + str(times) + '.html'
-    # fp = open(file_name, 'w')
-    # fp.close()
+
+    if is_has_content is False:
+        return
+
+    today_path = '../data/' + str(datetime.date.today())
+    if os.path.exists(today_path) is False:
+        os.mkdir(today_path)
+
+    file_name = today_path + '/' + str(times) + '.html'
     times += 1
     page.render(file_name)
 
 
-array300
+def checkValid(zip_array):
+    close_list  = [e[1] for e in zip_array]
+    if len(close_list) >= 60:
+        ma = calculateMa(close_list, 30)
+        lent = len(ma)
+        if lent > 30:
+            index1 = ma[lent - 1]
+            index2 = ma[lent - 29]
+            if index1 < index2:
+                return False
+    return True
+
+
+array300 = None
 
 def generateline(stocknumber,Type,startdate,enddate,interval):
     startdata = startdate.encode("ascii").replace("/","-").replace("\n","") #convert to tushare readable date
@@ -301,8 +324,8 @@ def generateline(stocknumber,Type,startdate,enddate,interval):
         #正常历史k线
         if Type == "差价图".decode("utf-8"):
             global array300
-            if array300 == None:
-                array300 = ts.get_k_data("sh", start=startdata, end=enddata, ktype=interval)
+            if array300 is None:
+                array300 = ts.get_k_data("399300", start=startdata, end=enddata, ktype=interval)
             array = ts.get_k_data(stocknumber, start=startdata, end=enddata, ktype=interval, autype='qfq')
             if array is None or array300 is None:
                 return None
@@ -332,14 +355,16 @@ def generateline(stocknumber,Type,startdate,enddate,interval):
                     benchmark_list.append(0)
 
                 returnarray = zip(date, target, benchmark_list)
+                if checkValid(returnarray) is False:
+                    return None
                 return returnarray
             except Exception as e:
                 print e
                 return None
         elif Type == "价格指数".decode("utf-8"):
             global array300
-            if array300 == None:
-                array300 = ts.get_k_data("sh", start=startdata, end=enddata, ktype=interval)
+            if array300 is None:
+                array300 = ts.get_k_data("399300", start=startdata, end=enddata, ktype=interval)
             array = ts.get_k_data(stocknumber, start=startdata, end=enddata, ktype=interval, autype='qfq')
             if array is None or array300 is None:
                 return None
@@ -365,6 +390,10 @@ def generateline(stocknumber,Type,startdate,enddate,interval):
                     price300_list.append(close300 * benchmark300)
 
                 returnarray = zip(date, price_list, price300_list)
+
+                if checkValid(returnarray) is False:
+                    return None
+
                 return returnarray
             except Exception as e:
                 print e
@@ -443,6 +472,7 @@ def returnquarter(argument):
 
 code_file = open('../all_code.csv', 'r')
 code_list = code_file.readlines()
+# code_list = ['603998']
 exec_code_list = []
 for index, line in zip(range(0, len(code_list)), code_list):
     line = line.strip()  # 去掉每行头尾空白
@@ -452,7 +482,9 @@ for index, line in zip(range(0, len(code_list)), code_list):
     exec_code_list.append(u'%s-价格指数' % line)
 
     if index % 30 == 0:
-        graphpage(exec_code_list, u"2015/01/01", u"2018/02/27", 'D', 854, 532)
+        print (u'%s-差价图' % line)
+        # graphpage([(u'%s-差价图' % line), (u'%s-价格指数' % line)], u"2015/01/01", u"2018/02/27", 'D', 854, 532)
+        graphpage(exec_code_list, u"2015/01/01", str(datetime.date.today()), 'D', 854, 532)
         exec_code_list = []
         time.sleep(20)
 
