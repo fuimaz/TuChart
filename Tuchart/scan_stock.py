@@ -1,5 +1,5 @@
 #-*- coding:utf-8 -*-
-
+import datetime
 from pyecharts import Kline, Line, Page,Overlap,Bar,Pie,Timeline
 from pandas import DataFrame as df
 import re
@@ -12,6 +12,7 @@ try:
 except NameError:
     xrange = range  # Python 3
 
+
 def calculateMa(data, Daycount):
     sum = 0
     result = list( 0 for x in data)#used to calculate ma. Might be deprecated for future versions
@@ -23,167 +24,177 @@ def calculateMa(data, Daycount):
         result[i] = sum/Daycount
     return result
 
+times = 0
+
 def graphpage(items,startdate,enddate,option,width1, height1): #labels:复权ork线or分笔 option:hfq, qfq or 15, 30, D, etc
     page = Page()
     for i in items:#generate numbers of graphs according to numbers of queries in treewidget
-        j = re.split("-",i)
-        if len(j)==3:
-            a = generateline(j[1],j[2],startdate,enddate,option)#stock number, Type, startdate, enddate, 30 or 15 or days
-            if a is None:
-                continue
-            time = [d[0] for d in a]#get time from returned dictionary
-            if j[2]!="Kline":
-
-                # 历史分笔
-                if len(a[0])==4 and a[0][2]=="bar": #for 分笔data
-                    overlap = Overlap()
-                    form = [e[1] for e in a]
-                    bar = Bar(j[0] + "-" + j[2], width=width1 * 10 / 11, height=(height1 * 10 / 11) / len(items))
-                    bar.add(j[0] + "-" + j[2], time, form, yaxis_min = "dataMin",yaxis_max = "dataMax",is_datazoom_show = True, datazoom_type = "slider")
-                    overlap.add(bar)
-
-                    line = Line(j[0] + "price", width=width1 * 10 / 11, height=(height1 * 10 / 11) / len(items))
-                    price = [e[3] for e in a]
-                    line.add(j[0] + "price", time, price, yaxis_min = "dataMin",yaxis_max = "dataMax", is_datazoom_show = True, datazoom_type = "slider",
-                            yaxis_type="value")
-                    overlap.add(line,yaxis_index=1, is_add_yaxis=True)
-
-                    page.add(overlap)
-
-                # 前10股东
-                if len(a[0])==5 and a[0][3]=="pie":
-                    overlap = Overlap()
-                    timeline = Timeline(is_auto_play=False, timeline_bottom=0) #zip(namearray,valuearray,quarter,flag,num)
-                    namearray = [c[0] for c in a]
-                    valuearray = [d[1] for d in a]
-                    quarter = [e[2] for e in a]
-                    num = a[0][4]
-
-                    for x in range(0, num / 10):
-                        list1 = valuearray[x]
-                        names = namearray[x]
-                        quarters = quarter[x][0]
-
-                        for idx, val in enumerate(list1):
-                            list1[idx] = float(val)
-
-                        pie = Pie(j[0]+"-"+"前十股东".decode("utf-8"),width=width1 * 10 / 11, height=(height1 * 10 / 11))
-
-                        pie.add(j[0]+"-"+"前十股东".decode("utf-8"), names, list1, radius=[30, 55], is_legend_show=False,
-                                is_label_show=True, label_formatter = "{b}: {c}\n{d}%")
-                        # print list
-                        # print names
-                        # print quarterarray
-
-                        timeline.add(pie, quarters)
-                        # namearray = [y for y in namearray[x]]
-                    timeline.render()
-
-                    return
-
-
-                    #need more statement
-                else:
-                    overlap = Overlap()
-                    if j[2] == "差价图".decode("utf-8"):
-                        benchmark = zip(*a)[2]
-                        line7 = Line(title_color="#C0C0C0")
-                        line7.add("benchmark", time, benchmark)
-                        overlap.add(line7)
-
-                    if j[2] == "价格指数".decode("utf-8"):
-                        price300_list = zip(*a)[2]
-                        line7 = Line(title_color="#C0C0C0")
-                        line7.add("上证-价格指数", time, price300_list)
-                        overlap.add(line7)
-
-                    form = [e[1] for e in a]#for not分笔 data
-                    line = Line(j[0] + "-" + j[2], width=width1*10/11, height=(height1*10/11)/len(items))
-                    line.add(j[0] + "-" + j[2], time, form, is_datazoom_show=True, datazoom_type="slider",yaxis_min="dataMin",yaxis_max="dataMax")
-                    overlap.add(line)
-                    page.add(overlap)
-            else:
-                overlap = Overlap()#for k线
-                close = zip(*a)[2]
-                candle = [[x[1], x[2], x[3], x[4]] for x in a]
-                candlestick = Kline(j[0] + "-" + j[2], width=width1*10/11, height = (height1*10/11) / len(items))
-                candlestick.add(j[0], time, candle, is_datazoom_show=True, datazoom_type="slider",yaxis_interval = 1)
-                overlap.add(candlestick)
-                if len(close)>10:
-                    ma10 = calculateMa(close, 10)
-                    line1 = Line(title_color="#C0C0C0")
-                    line1.add(j[0] + "-" + "MA10", time, ma10)
-                    overlap.add(line1)
-                if len(close)>20:
-                    ma20 = calculateMa(close, 20)
-                    line2 = Line(title_color="#C0C0C0")
-                    line2.add(j[0] + "-" + "MA20", time, ma20)
-                    overlap.add(line2)
-                if len(close)>30:
-                    ma30 = calculateMa(close, 30)
-                    line3 = Line(title_color="#C0C0C0")
-                    line3.add(j[0] + "-" + "MA30", time, ma30)
-                    overlap.add(line3)
-                page.add(overlap)
-        else:
-            for k in range(1, len(j)/3):#if graphs are combined
-                j[3*k-1] = re.sub("\n&","",j[3*k-1])
-            sizearray=[]
-            #if j[1] != "Candlestick"
-            layout = Overlap()
-            for i in xrange(0, len(j),3):
-                array = j[i:i +3]
-                b = generateline(array[1],array[2],startdate,enddate,option)
-                if b is None:
+        try:
+            # i -> 600209-差价图
+            j = re.split("-", i)
+            if len(j) == 2:
+                a = generateline(j[0],j[1],startdate,enddate,option)#stock number, Type, startdate, enddate, 30 or 15 or days
+                if a is None:
                     continue
-                btime = [d[0] for d in b]
-                if array[2] != "Kline":
-                    if len(b[0])==4 and b[0][2]=="bar":
-                        form = [e[1] for e in b]
-                        bar = Bar(array[0] + "-" + array[2], width=width1 * 10 / 11, height=(height1 * 10 / 11) / len(items))
-                        bar.add(array[0] + "-" + array[2], btime, form, is_datazoom_show=True, datazoom_type="slider",
-                                yaxis_min="dataMin", yaxis_max="dataMax")
-                        layout.add(bar)
-                        line = Line(array[0] + "price", width=width1 * 10 / 11, height=(height1 * 10 / 11) / len(items))
-                        price = [e[3] for e in b]
-                        line.add(array[0] + "price", btime, price, is_datazoom_show=True, datazoom_type="slider",
-                                     yaxis_min="dataMin", yaxis_type="value")
-                        layout.add(line, yaxis_index=1, is_add_yaxis=True)
+                time = [d[0] for d in a]#get time from returned dictionary
+                if j[1]!="Kline":
 
+                    # 历史分笔
+                    if len(a[0])==4 and a[0][2]=="bar": #for 分笔data
+                        overlap = Overlap()
+                        form = [e[1] for e in a]
+                        bar = Bar(j[0] + "-" + j[2], width=width1 * 10 / 11, height=(height1 * 10 / 11) / len(items))
+                        bar.add(j[0] + "-" + j[2], time, form, yaxis_min = "dataMin",yaxis_max = "dataMax",is_datazoom_show = True, datazoom_type = "slider")
+                        overlap.add(bar)
+
+                        line = Line(j[0] + "price", width=width1 * 10 / 11, height=(height1 * 10 / 11) / len(items))
+                        price = [e[3] for e in a]
+                        line.add(j[0] + "price", time, price, yaxis_min = "dataMin",yaxis_max = "dataMax", is_datazoom_show = True, datazoom_type = "slider",
+                                yaxis_type="value")
+                        overlap.add(line,yaxis_index=1, is_add_yaxis=True)
+
+                        page.add(overlap)
+
+                    # 前10股东
+                    if len(a[0])==5 and a[0][3]=="pie":
+                        overlap = Overlap()
+                        timeline = Timeline(is_auto_play=False, timeline_bottom=0) #zip(namearray,valuearray,quarter,flag,num)
+                        namearray = [c[0] for c in a]
+                        valuearray = [d[1] for d in a]
+                        quarter = [e[2] for e in a]
+                        num = a[0][4]
+
+                        for x in range(0, num / 10):
+                            list1 = valuearray[x]
+                            names = namearray[x]
+                            quarters = quarter[x][0]
+
+                            for idx, val in enumerate(list1):
+                                list1[idx] = float(val)
+
+                            pie = Pie(j[0]+"-"+"前十股东".decode("utf-8"),width=width1 * 10 / 11, height=(height1 * 10 / 11))
+
+                            pie.add(j[0]+"-"+"前十股东".decode("utf-8"), names, list1, radius=[30, 55], is_legend_show=False,
+                                    is_label_show=True, label_formatter = "{b}: {c}\n{d}%")
+                            # print list
+                            # print names
+                            # print quarterarray
+
+                            timeline.add(pie, quarters)
+                            # namearray = [y for y in namearray[x]]
+                        timeline.render()
+
+                        return
+
+
+                        #need more statement
                     else:
-                        line = Line(array[0] + "-" + array[2],width=width1*10/11, height=(height1*10/11) / len(items))
-                        line.add(array[0]+"-"+array[2], btime, b, is_datazoom_show=True, yaxis_max = "dataMax", yaxis_min = "dataMin",datazoom_type="slider")
-                        layout.add(line)
-                else:
-                    candle = [[x[1], x[2], x[3], x[4]] for x in b]
-                    candlestick = Kline(array[0] + "-" + array[1], width=width1*10/11,
-                                        height=(height1*10/11) / len(items))
-                    candlestick.add(array[0], btime, candle, is_datazoom_show=True, datazoom_type=["slider"])
+                        overlap = Overlap()
+                        if j[1] == "差价图".decode("utf-8"):
+                            benchmark = zip(*a)[2]
+                            line7 = Line(title_color="#C0C0C0")
+                            line7.add("benchmark", time, benchmark)
+                            overlap.add(line7)
 
-                    #if i == 0:
-                    close = zip(*b)[2]
+                        if j[1] == "价格指数".decode("utf-8"):
+                            price300_list = zip(*a)[2]
+                            line7 = Line(title_color="#C0C0C0")
+                            line7.add("沪深300-价格指数", time, price300_list)
+                            overlap.add(line7)
+
+                        form = [e[1] for e in a]#for not分笔 data
+                        line = Line(j[0] + "-" + j[1], width=width1*10/11, height=(height1*10/11)/len(items))
+                        line.add(j[0] + "-" + j[1], time, form, is_datazoom_show=True, datazoom_type="slider",yaxis_min="dataMin",yaxis_max="dataMax")
+                        overlap.add(line)
+                        page.add(overlap)
+                else:
+                    overlap = Overlap()#for k线
+                    close = zip(*a)[2]
+                    candle = [[x[1], x[2], x[3], x[4]] for x in a]
+                    candlestick = Kline(j[0] + "-" + j[1], width=width1*10/11, height = (height1*10/11) / len(items))
+                    candlestick.add(j[0], time, candle, is_datazoom_show=True, datazoom_type="slider",yaxis_interval = 1)
+                    overlap.add(candlestick)
                     if len(close)>10:
                         ma10 = calculateMa(close, 10)
-                        line4 = Line(title_color="#C0C0C0")
-                        line4.add(array[0] + "-" + "MA10", btime, ma10)
-                        layout.add(line4)
+                        line1 = Line(title_color="#C0C0C0")
+                        line1.add(j[0] + "-" + "MA10", time, ma10)
+                        overlap.add(line1)
                     if len(close)>20:
                         ma20 = calculateMa(close, 20)
-                        line5 = Line(title_color="#C0C0C0")
-                        line5.add(array[0] + "-" + "MA20", btime, ma20)
-                        layout.add(line5)
+                        line2 = Line(title_color="#C0C0C0")
+                        line2.add(j[0] + "-" + "MA20", time, ma20)
+                        overlap.add(line2)
                     if len(close)>30:
                         ma30 = calculateMa(close, 30)
-                        line6 = Line(title_color="#C0C0C0")
-                        line6.add(array[0] + "-" + "MA30", btime, ma30)
-                        layout.add(line6)
-                    layout.add(candlestick)
-            page.add(layout)
-    page.render()
+                        line3 = Line(title_color="#C0C0C0")
+                        line3.add(j[0] + "-" + "MA30", time, ma30)
+                        overlap.add(line3)
+                    page.add(overlap)
+            else:
+                for k in range(1, len(j)/3):#if graphs are combined
+                    j[3*k-1] = re.sub("\n&","",j[3*k-1])
+                sizearray=[]
+                #if j[1] != "Candlestick"
+                layout = Overlap()
+                for i in xrange(0, len(j),3):
+                    array = j[i:i + 3]
+                    b = generateline(array[1],array[2],startdate,enddate,option)
+                    if b is None:
+                        continue
+                    btime = [d[0] for d in b]
+                    if array[2] != "Kline":
+                        if len(b[0])==4 and b[0][2]=="bar":
+                            form = [e[1] for e in b]
+                            bar = Bar(array[0] + "-" + array[2], width=width1 * 10 / 11, height=(height1 * 10 / 11) / len(items))
+                            bar.add(array[0] + "-" + array[2], btime, form, is_datazoom_show=True, datazoom_type="slider",
+                                    yaxis_min="dataMin", yaxis_max="dataMax")
+                            layout.add(bar)
+                            line = Line(array[0] + "price", width=width1 * 10 / 11, height=(height1 * 10 / 11) / len(items))
+                            price = [e[3] for e in b]
+                            line.add(array[0] + "price", btime, price, is_datazoom_show=True, datazoom_type="slider",
+                                         yaxis_min="dataMin", yaxis_type="value")
+                            layout.add(line, yaxis_index=1, is_add_yaxis=True)
+
+                        else:
+                            line = Line(array[0] + "-" + array[2],width=width1*10/11, height=(height1*10/11) / len(items))
+                            line.add(array[0]+"-"+array[2], btime, b, is_datazoom_show=True, yaxis_max = "dataMax", yaxis_min = "dataMin",datazoom_type="slider")
+                            layout.add(line)
+                    else:
+                        candle = [[x[1], x[2], x[3], x[4]] for x in b]
+                        candlestick = Kline(array[0] + "-" + array[1], width=width1*10/11,
+                                            height=(height1*10/11) / len(items))
+                        candlestick.add(array[0], btime, candle, is_datazoom_show=True, datazoom_type=["slider"])
+
+                        #if i == 0:
+                        close = zip(*b)[2]
+                        if len(close)>10:
+                            ma10 = calculateMa(close, 10)
+                            line4 = Line(title_color="#C0C0C0")
+                            line4.add(array[0] + "-" + "MA10", btime, ma10)
+                            layout.add(line4)
+                        if len(close)>20:
+                            ma20 = calculateMa(close, 20)
+                            line5 = Line(title_color="#C0C0C0")
+                            line5.add(array[0] + "-" + "MA20", btime, ma20)
+                            layout.add(line5)
+                        if len(close)>30:
+                            ma30 = calculateMa(close, 30)
+                            line6 = Line(title_color="#C0C0C0")
+                            line6.add(array[0] + "-" + "MA30", btime, ma30)
+                            layout.add(line6)
+                        layout.add(candlestick)
+                page.add(layout)
+        except Exception as e:
+            print(e)
+    global times
+    file_name = '../data/' + str(datetime.date.today()) +'_' + str(times) + '.html'
+    # fp = open(file_name, 'w')
+    # fp.close()
+    times += 1
+    page.render(file_name)
 
 
-array300 = None
-
+array300
 
 def generateline(stocknumber,Type,startdate,enddate,interval):
     startdata = startdate.encode("ascii").replace("/","-").replace("\n","") #convert to tushare readable date
@@ -287,11 +298,10 @@ def generateline(stocknumber,Type,startdate,enddate,interval):
                 Candlestick = zip(*[Date, Open, Close, Low, High])
                 return Candlestick
 
-
         #正常历史k线
         if Type == "差价图".decode("utf-8"):
             global array300
-            if array300 is None:
+            if array300 == None:
                 array300 = ts.get_k_data("sh", start=startdata, end=enddata, ktype=interval)
             array = ts.get_k_data(stocknumber, start=startdata, end=enddata, ktype=interval, autype='qfq')
             if array is None or array300 is None:
@@ -328,7 +338,7 @@ def generateline(stocknumber,Type,startdate,enddate,interval):
                 return None
         elif Type == "价格指数".decode("utf-8"):
             global array300
-            if array300 is None:
+            if array300 == None:
                 array300 = ts.get_k_data("sh", start=startdata, end=enddata, ktype=interval)
             array = ts.get_k_data(stocknumber, start=startdata, end=enddata, ktype=interval, autype='qfq')
             if array is None or array300 is None:
@@ -403,6 +413,7 @@ def generateline(stocknumber,Type,startdate,enddate,interval):
             Candlestick = zip(*[Date, Open, Close, Low, High])
             return Candlestick
 
+
 def Mergegraph(stuff):
     sth = []
     for i in stuff:
@@ -410,6 +421,7 @@ def Mergegraph(stuff):
         sth.append(j)
     flat_list = [item for sublist in sth for item in sublist]
     return flat_list
+
 
 def firstletter(argument): #小写第一个字母
     return argument[:1].lower() + argument[1:]
@@ -429,15 +441,19 @@ def returnquarter(argument):
     if argument>=11:
         return 4
 
+code_file = open('../all_code.csv', 'r')
+code_list = code_file.readlines()
+exec_code_list = []
+for index, line in zip(range(0, len(code_list)), code_list):
+    line = line.strip()  # 去掉每行头尾空白
+    print line, index
 
-def get_local_k_data(code=None, start='', end=''):
-    if code is None:
-        return None
+    exec_code_list.append(u'%s-差价图' % line)
+    exec_code_list.append(u'%s-价格指数' % line)
 
-    if code.find('6') == 0:
-        code = 'sh' + code
-    else:
-        code = 'sz' + code
+    if index % 30 == 0:
+        graphpage(exec_code_list, u"2015/01/01", u"2018/02/27", 'D', 854, 532)
+        exec_code_list = []
+        time.sleep(20)
 
-    '/Users/juchen/PycharmProjects/stock/data/hs_data/'
 

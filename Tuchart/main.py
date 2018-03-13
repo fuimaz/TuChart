@@ -5,6 +5,7 @@ from datetime import datetime,timedelta
 from qtpy.QtWidgets import QTreeWidgetItem,QMenu,QApplication,QAction,QMainWindow
 from qtpy import QtGui,QtWidgets
 from qtpy.QtCore import Qt,QUrl,QDate
+import qtpy.QtCore as core
 from Graph import graphpage
 from layout import Ui_MainWindow
 from pandas import DataFrame as df
@@ -129,8 +130,10 @@ class MyUi(QMainWindow):
         self.ui.comboBox.addItems(["D", "W", "M", "5", "15", "30", "60"])
         self.ui.treeWidget_2.setDragDropMode(self.ui.treeWidget_2.InternalMove)
         self.ui.treeWidget_2.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.treeWidget.setSelectionMode(self.ui.treeWidget_2.ExtendedSelection)
+        self.ui.treeWidget.setSelectionMode(self.ui.treeWidget_2.ContiguousSelection)
+        self.ui.treeWidget_2.setSelectionMode(self.ui.treeWidget_2.ExtendedSelection)
         self.ui.treeWidget_2.customContextMenuRequested.connect(self.openWidgetMenu)
-        #self.ui.toolbutton.clicked.connect(lambda action: self.graphmerge(action, CombineKeyword))
         self.ui.combobox.currentIndexChanged.connect(lambda: self.modifycombo(pastQL,pastQ))
 
     def init_treeWidget(self, list1, series):
@@ -145,10 +148,6 @@ class MyUi(QMainWindow):
             for idx,val in enumerate(list2):
                 child = QTreeWidgetItem(parent)
                 child.setText(0, name[idx]+"-"+str(val))
-                #for i in Drag:
-                    #grandson = QTreeWidgetItem(child)     #Commented out because increases program response time
-                    #grandson.setText(0, i)
-        #self.ui.treeWidget.itemDoubleClicked.connect(self.onClickItem) #Display Collection items
 
     def code_sort_tree(self, companies):
         self.ui.treeWidget.clear()
@@ -222,11 +221,16 @@ class MyUi(QMainWindow):
 
     def openMenu(self,position):
         indexes = self.ui.treeWidget.selectedIndexes()
+
         item = self.ui.treeWidget.itemAt(position)
+        collec = []
+        for x in self.ui.treeWidget.selectedItems():
+            collec.append(str(x.text(0).encode("utf-8")))
+
         db_origin = ""
         #if item.parent():
          #   db_origin = item.parent().text(0)
-        collec = str(item.text(0).encode("utf-8"))
+        # collec = str(item.text(0).encode("utf-8"))
         if len(indexes) > 0:
             level = 0
             index = indexes[0]
@@ -247,6 +251,9 @@ class MyUi(QMainWindow):
                     menu.addAction(QAction("High", menu, checkable=True))
                     menu.addAction(QAction("Low", menu, checkable=True))
                     menu.addAction(QAction("Volume", menu, checkable=True))
+                    menu.addAction(QAction("差价图", menu, checkable=True))
+                    menu.addAction(QAction("价格指数", menu, checkable=True))
+                    menu.addAction(QAction("Kline-local", menu, checkable=True))
                     #menu.addAction(QAction("P_change", menu, checkable=True))
                     #menu.addAction(QAction("Turnover",menu,checkable=True))
                 if self.ui.combobox.currentText()==u"复权":
@@ -276,19 +283,27 @@ class MyUi(QMainWindow):
         menu.exec_(self.ui.treeWidget.viewport().mapToGlobal(position))
 
     def methodSelected(self, action, collec):
+        # item = QtWidgets.QTreeWidgetItemIterator(
+        #     self.treeWidget)
+        # while item.value():
+        #     if item.value().checkState(0) == core.Qt.Checked:
+        #         self.deleteNode()
+        #         item = item.__isub__(1)
+        #         item = item.__iadd__(1)
         # print(action.text()) #Choice
         # if (self.ui.treewidget.count() == 5):
         #   self.ui.label.setText("Maximum number of queries")
         #   return
         # self.ui.label.setText("")
         Choice = action.text()
-        Stock = collec
-        # print(collec)  #Stock Name
-        # print(db_origin)  #DataBase name
-        # list1 = [self.tr(Stock+"-"+Choice+"-"+db_origin)]
-        # self.ui.treewidget.addItems(list1)
-        parent = QTreeWidgetItem(self.ui.treeWidget_2)
-        parent.setText(0, Stock.decode("utf-8") + "-" + Choice)
+        for stock in collec:
+            Stock = stock
+            # print(collec)  #Stock Name
+            # print(db_origin)  #DataBase name
+            # list1 = [self.tr(Stock+"-"+Choice+"-"+db_origin)]
+            # self.ui.treewidget.addItems(list1)
+            parent = QTreeWidgetItem(self.ui.treeWidget_2)
+            parent.setText(0, Stock.decode("utf-8") + "-" + Choice)
 
 
     def openWidgetMenu(self,position):
